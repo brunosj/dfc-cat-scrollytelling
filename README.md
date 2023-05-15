@@ -1,38 +1,67 @@
-# create-svelte
+# Designers for Climate - Climate Action Tracker Scrollytelling Project
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+## Description
 
-## Creating a project
+This repo contains the code for the [Designers for Climate - Climate Action Tracker Scrollytelling Project](https://dfc-cat-scrollytelling.vercel.app/).
 
-If you're seeing this, you've probably already done this step. Congrats!
+Many thanks to [Russell Goldenberg](https://github.com/russellgoldenberg) and [Connor Rothschild](https://www.connorrothschild.com/) for their commitment to sharing valuable data vizualization insights on the web.
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+## Technologies
 
-# create a new project in my-app
-npm create svelte@latest my-app
+The site is a minimalist [Sveltekit](https://kit.svelte.dev/) project deployed on [Vercel](https://vercel.com/).
+
+## Installation
+
+1. Use the git CLI to close the repo
+
+```
+gh repo clone brunosj/dfc-cat-scrollytelling
+
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+2. Install dependencies
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm install
+# or
+yarn install
 ```
 
-## Building
-
-To create a production version of your app:
+3. Navigate into the site's directory and start the development server
 
 ```bash
-npm run build
+pnpm dev
+# or
+yarn dev
 ```
 
-You can preview the production build with `npm run preview`.
+Open [http://localhost:5173](http://localhost:5173) with your browser to see the result.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+## Structure
+
+```
+.
+├── node_modules
+└── src
+    ├── components
+    ├── data
+    ├── routes
+    ├── styles
+    ├── app.html
+├── static
+├── .eslintignore
+├── .eslintrc.cjs
+├── .gitignore
+├── .npmrc
+├── .prettierignore
+├── .prettierrrc
+├── package.json
+├── pnpm-lock.yaml
+├── README.md
+├── svelte.config.js
+└── vite.config.ts
+```
+
+## Further development
+
+This repository is maintained by [brunosj](https://github.com/brunosj).
