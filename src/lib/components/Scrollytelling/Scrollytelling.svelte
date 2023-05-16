@@ -15,7 +15,7 @@
 
 <article>
 	<div class="section-container">
-		<div class="steps-container">
+		<section class="steps-container">
 			<Scrolly bind:value>
 				{#each steps as text, i}
 					<div class="step" class:active={value === i}>
@@ -24,7 +24,7 @@
 				{/each}
 				<div class="spacer" />
 			</Scrolly>
-		</div>
+		</section>
 		<section class="sticky">
 			<EmissionsChart datapoints={GermanyData} step={value} />
 		</section>
