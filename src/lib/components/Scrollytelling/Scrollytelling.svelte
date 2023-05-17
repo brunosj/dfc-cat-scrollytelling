@@ -1,13 +1,17 @@
 <script>
 	import Scrolly from '$components/Scrollytelling/ScrollyComponent.svelte';
 	import EmissionsChart from '$components/EmissionsChart/EmissionsChart.svelte';
-	import GermanyData from '$data/GermanyEmissions.js';
+	import GermanyData from '$data/GermanyEmissionsPathways.js';
 
 	let value;
 	const steps = [
-		'<p>This graph illustrates the emission trends in Germany since 1990. While there has been a consistent decline in emissions, it is worth noting that Germany remains a significant contributor to overall emissions.</p>',
-		'<p>We project that implemented policies and actions will lead to emissions reductions of between 49% - 51% below 1990 levels by 2030 excl. LULUCF.</p><p>This scenario is illustrated by the <span class="step-1">pink line</span>.</p>',
-		'<p>If all measures planned in the coalition contract were implemented, Germany would get close to its domestic emissions target of a 65% reduction below 1990 levels in 2030.</p><p>This scenario is illustrated by the <span class="step-2">blue line</span>.</p><p>The data can be downloaded <a href="https://climateactiontracker.org/documents/1113/202206_CAT_AssessmentData_DEU.xlsx">here</a></p>'
+		'<p>Historical emissions</p>',
+		'<p>Above 4 degrees scenario</p>',
+		'<p>4 degrees scenario</p>',
+		'<p>3 degrees scenario</p>',
+		'<p>2 degrees scenario</p>',
+		'<p>1.5 degrees scenario</p>',
+		'<p>1.5 bottom range scenario</p>'
 	];
 
 	let show = false;
