@@ -27,7 +27,7 @@
 		});
 	};
 
-	// *** derive the originYValue so that the areas can fill the entire space from the origin and not the min value of the dataset
+	// *** derive the originYValue so that the areas can fill the entire space from the origin and not the min value of the dataset (previous iteration of the chart)
 	function getY0Value() {
 		const minYValue = yScale.domain()[0];
 		const originYValue = yScale(minYValue);
@@ -37,159 +37,207 @@
 	// Declare variables used in the graph
 
 	// *** line paths
-	let lineGeneratorActual = null;
-	let lineGeneratorAboveFourDegrees = null;
-	let lineGeneratorFourDegrees = null;
-	let lineGeneratorThreeDegrees = null;
-	let lineGeneratorTwoDegrees = null;
-	let lineGeneratorOnePointFiveDegrees = null;
-	let lineGeneratorBottomRange = null;
+	let lineActual = null;
+	let lineAboveFourDegrees = null;
+	let lineFourDegrees = null;
+	let lineThreeDegrees = null;
+	let lineTwoDegrees = null;
+	let lineOnePointFiveDegrees = null;
+	let lineBottomRange = null;
 
 	// *** areas
-	let areaGeneratorAboveFourDegrees = null;
-	let areaGeneratorFourDegrees = null;
-	let areaGeneratorThreeDegrees = null;
-	let areaGeneratorTwoDegrees = null;
-	let areaGeneratorOnePointFiveDegrees = null;
-	let areaGeneratorBottomRange = null;
+	let areaAboveFourDegrees = null;
+	let areaFourDegrees = null;
+	let areaThreeDegrees = null;
+	let areaTwoDegrees = null;
+	let areaOnePointFiveDegrees = null;
+	let areaBottomRange = null;
 
 	// Arrange data
 
 	// *** deconstruct datapoints object to extract individual arrays
 	const {
-		actual,
-		aboveFourDegrees,
-		fourDegrees,
-		threeDegrees,
-		twoDegrees,
-		onePointFiveDegrees,
-		bottomRange
+		actual: actualUnformatted,
+		aboveFourDegrees: aboveFourDegreesUnformatted,
+		fourDegrees: fourDegreesUnformatted,
+		threeDegrees: threeDegreesUnformatted,
+		twoDegrees: twoDegreeUnformatted,
+		onePointFiveDegrees: onePointFiveDegreesUnformatted,
+		bottomRange: bottomRangeUnformatted
 	} = datapoints;
 
 	// *** reformat dates in arrays and add actual data last value
 	// *** (this allows the line paths to start from this value rather than their own first value)
-	const reformattedActual = reformatYear(actual);
-	const lastActualData = reformattedActual[reformattedActual.length - 1];
+	const actual = reformatYear(actualUnformatted);
+	const lastActualData = actual[actual.length - 1];
 
 	const arraysToReformat = [
-		{ name: 'AboveFourDegrees', data: aboveFourDegrees },
-		{ name: 'FourDegrees', data: fourDegrees },
-		{ name: 'ThreeDegrees', data: threeDegrees },
-		{ name: 'TwoDegrees', data: twoDegrees },
-		{ name: 'OnePointFiveDegrees', data: onePointFiveDegrees },
-		{ name: 'BottomRange', data: bottomRange }
+		{ name: 'aboveFourDegrees', data: aboveFourDegreesUnformatted },
+		{ name: 'fourDegrees', data: fourDegreesUnformatted },
+		{ name: 'threeDegrees', data: threeDegreesUnformatted },
+		{ name: 'twoDegrees', data: twoDegreeUnformatted },
+		{ name: 'onePointFiveDegrees', data: onePointFiveDegreesUnformatted },
+		{ name: 'bottomRange', data: bottomRangeUnformatted }
 	];
 
-	const reformattedArrays = {};
+	const arrays = {};
 	for (const arrayObj of arraysToReformat) {
 		const reformattedArray = [lastActualData, ...reformatYear(arrayObj.data)];
-		reformattedArrays[`reformatted${arrayObj.name}`] = reformattedArray;
+		arrays[`${arrayObj.name}`] = reformattedArray;
 	}
 
+	console.log('above', typeof arrays.aboveFourDegrees);
+	console.log('four', typeof arrays.fourDegrees);
 	// *** merge arrays to derive full range of values
 	const mergedArray = [
-		...reformattedActual,
-		...reformattedArrays.reformattedAboveFourDegrees,
-		...reformattedArrays.reformattedFourDegrees,
-		...reformattedArrays.reformattedThreeDegrees,
-		...reformattedArrays.reformattedTwoDegrees,
-		...reformattedArrays.reformattedOnePointFiveDegrees,
-		...reformattedArrays.reformattedBottomRange
+		...actual,
+		...arrays.aboveFourDegrees,
+		...arrays.fourDegrees,
+		...arrays.threeDegrees,
+		...arrays.twoDegrees,
+		...arrays.onePointFiveDegrees,
+		...arrays.bottomRange
 	];
 
 	const data = mergedArray.map((d) => ({
 		year: d.year,
-		emissions: d.emissions
+		emissions: d.emissions,
+		emissionsMin: d.emissionMin
 	}));
 
 	// Use D3 functions to define x and y scales
-	$: xScale = scaleTime()
+	const xScale = scaleTime()
 		.domain(extent(data, (d) => d.year))
 		.range([0, innerWidth])
 		.nice();
 
-	$: yScale = scaleLinear()
+	const yScale = scaleLinear()
 		.domain(extent(data, (d) => d.emissions))
 		.range([innerHeight, 0])
 		.nice();
-
 	// Use reactive variables to render line paths and areas
 
 	// *** line paths
-	$: lineGeneratorActual = line()
+	$: lineActual = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedActual);
+		.y((d) => yScale(d.emissions))(actual);
 
-	$: lineGeneratorAboveFourDegrees = line()
+	$: lineAboveFourDegrees = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedAboveFourDegrees);
+		.y((d) => yScale(d.emissions))(arrays.aboveFourDegrees);
 
-	$: lineGeneratorFourDegrees = line()
+	$: lineFourDegrees = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedFourDegrees);
+		.y((d) => yScale(d.emissions))(arrays.fourDegrees);
 
-	$: lineGeneratorThreeDegrees = line()
+	$: lineThreeDegrees = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedThreeDegrees);
+		.y((d) => yScale(d.emissions))(arrays.threeDegrees);
 
-	$: lineGeneratorTwoDegrees = line()
+	$: lineTwoDegrees = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedTwoDegrees);
+		.y((d) => yScale(d.emissions))(arrays.twoDegrees);
 
-	$: lineGeneratorOnePointFiveDegrees = line()
+	$: lineOnePointFiveDegrees = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedOnePointFiveDegrees);
+		.y((d) => yScale(d.emissions))(arrays.onePointFiveDegrees);
 
-	$: lineGeneratorBottomRange = line()
+	$: lineBottomRange = line()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(reformattedArrays.reformattedBottomRange);
+		.y((d) => yScale(d.emissions))(arrays.bottomRange);
 
 	// *** areas
-	$: areaGeneratorAboveFourDegrees = area()
+	$: areaAboveFourDegrees = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedAboveFourDegrees);
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.fourDegrees[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.aboveFourDegrees);
 
-	$: areaGeneratorFourDegrees = area()
+	$: areaFourDegrees = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedFourDegrees);
+		// .y0(() => getY0Value())
+		//this was previously used to show "cumulative" emissions
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.threeDegrees[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.fourDegrees);
 
-	$: areaGeneratorThreeDegrees = area()
+	$: areaThreeDegrees = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedThreeDegrees);
+		// .y0(() => getY0Value())
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.twoDegrees[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.threeDegrees);
 
-	$: areaGeneratorTwoDegrees = area()
+	$: areaTwoDegrees = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedTwoDegrees);
+		// .y0(() => getY0Value())
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.onePointFiveDegrees[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.twoDegrees);
 
-	$: areaGeneratorOnePointFiveDegrees = area()
+	$: areaOnePointFiveDegrees = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedOnePointFiveDegrees);
+		// .y0(() => getY0Value())
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.bottomRange[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.onePointFiveDegrees);
 
-	$: areaGeneratorBottomRange = area()
+	$: areaBottomRange = area()
 		.curve(curveNatural)
 		.x((d) => xScale(d.year))
-		.y0(() => getY0Value())
-		.y1((d) => yScale(d.emissions))(reformattedArrays.reformattedBottomRange);
+		// .y0(() => getY0Value())
+		.y0((d, i) => {
+			if (i === 0) {
+				return yScale(lastActualData.emissions);
+			} else {
+				const previousData = arrays.bottomRange[i];
+				return yScale(previousData.emissions);
+			}
+		})
+		.y1((d) => yScale(d.emissions))(arrays.bottomRange);
 </script>
-
-// HTML used to render the chart
 
 <div class="chart-container">
 	<svg {width} {height}>
@@ -201,36 +249,36 @@
 			</text>
 
 			// Historical data graph
-			{#each reformattedActual as data, i}
-				<path d={lineGeneratorActual} fill="none" stroke="#440FDB" stroke-width="2.5" />
+			{#each actual as data, i}
+				<path d={lineActual} fill="none" stroke="#440FDB" stroke-width="2.5" />
 			{/each}
 
 			// Pathways graph
-			{#each Object.entries(reformattedArrays) as [key, dataArray], i}
+			{#each Object.entries(arrays) as [key, dataArray], i}
 				{@const colorCodes = {
-					reformattedAboveFourDegrees: '#FFF',
-					reformattedFourDegrees: '#DF7153',
-					reformattedThreeDegrees: '#E8AF5B',
-					reformattedTwoDegrees: '#F0E478',
-					reformattedOnePointFiveDegrees: '#B5CA74',
-					reformattedBottomRange: 'green'
+					aboveFourDegrees: '#FFF',
+					fourDegrees: '#DF7153',
+					threeDegrees: '#E8AF5B',
+					twoDegrees: '#F0E478',
+					onePointFiveDegrees: '#B5CA74',
+					bottomRange: 'green'
 				}}
-				{@const lineGenerators = {
-					reformattedAboveFourDegrees: lineGeneratorAboveFourDegrees,
-					reformattedFourDegrees: lineGeneratorFourDegrees,
-					reformattedThreeDegrees: lineGeneratorThreeDegrees,
-					reformattedTwoDegrees: lineGeneratorTwoDegrees,
-					reformattedOnePointFiveDegrees: lineGeneratorOnePointFiveDegrees,
-					reformattedBottomRange: lineGeneratorBottomRange
+				{@const lines = {
+					aboveFourDegrees: lineAboveFourDegrees,
+					fourDegrees: lineFourDegrees,
+					threeDegrees: lineThreeDegrees,
+					twoDegrees: lineTwoDegrees,
+					onePointFiveDegrees: lineOnePointFiveDegrees,
+					bottomRange: lineBottomRange
 				}}
 
-				{@const areaGenerators = {
-					reformattedAboveFourDegrees: areaGeneratorAboveFourDegrees,
-					reformattedFourDegrees: areaGeneratorFourDegrees,
-					reformattedThreeDegrees: areaGeneratorThreeDegrees,
-					reformattedTwoDegrees: areaGeneratorTwoDegrees,
-					reformattedOnePointFiveDegrees: areaGeneratorOnePointFiveDegrees,
-					reformattedBottomRange: areaGeneratorBottomRange
+				{@const areas = {
+					aboveFourDegrees: areaAboveFourDegrees,
+					fourDegrees: areaFourDegrees,
+					threeDegrees: areaThreeDegrees,
+					twoDegrees: areaTwoDegrees,
+					onePointFiveDegrees: areaOnePointFiveDegrees,
+					bottomRange: areaBottomRange
 				}}
 
 				{#if step >= i + 1}
@@ -239,13 +287,8 @@
 						in:fly={{ duration: 1000, y: 200, opacity: 0 }}
 					>
 						{#each dataArray as data}
-							<path
-								d={lineGenerators[key]}
-								fill="none"
-								stroke={colorCodes[key]}
-								stroke-width="2.5"
-							/>
-							<path d={areaGenerators[key]} fill={colorCodes[key]} />
+							<path d={lines[key]} fill="none" stroke={colorCodes[key]} stroke-width="4" />
+							<path d={areas[key]} fill={colorCodes[key]} opacity="1" />
 						{/each}
 					</g>
 				{/if}
