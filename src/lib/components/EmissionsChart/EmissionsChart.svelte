@@ -1,6 +1,8 @@
 <script>
 	import Axis from '$components/EmissionsChart/Axis.svelte';
-	import { extent, scaleLinear, scaleTime, line, curveNatural, area } from 'd3';
+	// *** Give min/max an alias so they don't clash with fn from Math library
+	import { extent, scaleLinear, scaleTime, scaleOrdinal, line, curveNatural, area, group, min as d3min, max as d3max, timeParse} from 'd3';
+	import { construct_svelte_component } from 'svelte/internal';
 	import { fly } from 'svelte/transition';
 
 	// Export props
@@ -8,7 +10,7 @@
 	export let datapoints;
 	export let step;
 
-	// Define stylying variables
+	// Define styling variables
 
 	const margin = { top: 100, bottom: 100, left: 70, right: 70 };
 	let width = 900;
@@ -18,225 +20,84 @@
 		innerWidth = width - margin.left - margin.right;
 
 	// Define util functions
+	// *** d3 timeParse fn doesn't require as to give arbitrary day/month vals
+	const parseDate = timeParse("%Y")
 
 	// *** format the date number in a date object
 	const reformatYear = (data) => {
 		return data.map((item) => {
-			const year = new Date(item.year, 0, 1);
-			return { ...item, year: year };
+			return { ...item, yeardate: parseDate(item.year) };
 		});
 	};
 
-	// *** derive the originYValue so that the areas can fill the entire space from the origin and not the min value of the dataset (previous iteration of the chart)
-	function getY0Value() {
-		const minYValue = yScale.domain()[0];
-		const originYValue = yScale(minYValue);
-		return originYValue;
-	}
-
 	// Declare variables used in the graph
-
-	// *** line paths
-	let lineActual = null;
-	let lineAboveFourDegrees = null;
-	let lineFourDegrees = null;
-	let lineThreeDegrees = null;
-	let lineTwoDegrees = null;
-	let lineOnePointFiveDegrees = null;
-	let lineBottomRange = null;
-
-	// *** areas
-	let areaAboveFourDegrees = null;
-	let areaFourDegrees = null;
-	let areaThreeDegrees = null;
-	let areaTwoDegrees = null;
-	let areaOnePointFiveDegrees = null;
-	let areaBottomRange = null;
-
-	// Arrange data
 
 	// *** deconstruct datapoints object to extract individual arrays
 	const {
 		actual: actualUnformatted,
-		aboveFourDegrees: aboveFourDegreesUnformatted,
-		fourDegrees: fourDegreesUnformatted,
-		threeDegrees: threeDegreesUnformatted,
-		twoDegrees: twoDegreeUnformatted,
-		onePointFiveDegrees: onePointFiveDegreesUnformatted,
-		bottomRange: bottomRangeUnformatted
+		future: futureUnformatted
 	} = datapoints;
 
 	// *** reformat dates in arrays and add actual data last value
 	// *** (this allows the line paths to start from this value rather than their own first value)
 	const actual = reformatYear(actualUnformatted);
-	const lastActualData = actual[actual.length - 1];
+	const future = reformatYear(futureUnformatted);
 
-	const arraysToReformat = [
-		{ name: 'aboveFourDegrees', data: aboveFourDegreesUnformatted },
-		{ name: 'fourDegrees', data: fourDegreesUnformatted },
-		{ name: 'threeDegrees', data: threeDegreesUnformatted },
-		{ name: 'twoDegrees', data: twoDegreeUnformatted },
-		{ name: 'onePointFiveDegrees', data: onePointFiveDegreesUnformatted },
-		{ name: 'bottomRange', data: bottomRangeUnformatted }
-	];
-
-	const arrays = {};
-	for (const arrayObj of arraysToReformat) {
-		const reformattedArray = [lastActualData, ...reformatYear(arrayObj.data)];
-		arrays[`${arrayObj.name}`] = reformattedArray;
-	}
-
-	console.log('above', typeof arrays.aboveFourDegrees);
-	console.log('four', typeof arrays.fourDegrees);
-	// *** merge arrays to derive full range of values
+	// *** Merge historical and future data together into one array
 	const mergedArray = [
 		...actual,
-		...arrays.aboveFourDegrees,
-		...arrays.fourDegrees,
-		...arrays.threeDegrees,
-		...arrays.twoDegrees,
-		...arrays.onePointFiveDegrees,
-		...arrays.bottomRange
-	];
+		...future
+	]
 
+	// *** Make this into a single dataset
+	// *** Need this to e.g. determine extent of all data
 	const data = mergedArray.map((d) => ({
+		// Keep year as both number and date for convenience
 		year: d.year,
-		emissions: d.emissions,
-		emissionsMin: d.emissionMin
+		yeardate: d.yeardate,
+		ymin: d.ymin,
+		ymax: d.ymax
 	}));
+
+	// *** Group our future data by temperature category
+	var dataFutureGrouped = group(future, d => d.temp)
+	// *** Convert this d3 'group' object into an array (needed for us to use below)
+	var arrayFutureGrouped = Array.from(dataFutureGrouped)
+
+	// *** Create funcs that returns colours for a key
+	// *** We make a different colour scale for area and lines (because top and bottom area don't have a bouding line)
+	const colourScaleLine = scaleOrdinal()
+		.domain(dataFutureGrouped.keys())
+		.range(['transparent', '#DF7153', '#E8AF5B', '#F0E478', '#B5CA74']);
+
+	const colourScaleArea = scaleOrdinal()
+		.domain(dataFutureGrouped.keys())
+		.range(['#FFF', '#DF7153', '#E8AF5B', '#F0E478', '#B5CA74']);
 
 	// Use D3 functions to define x and y scales
 	const xScale = scaleTime()
-		.domain(extent(data, (d) => d.year))
+		.domain(extent(data, (d) => d.yeardate))
 		.range([0, innerWidth])
 		.nice();
 
+	// *** Because we now split our data between ymin/ymax we can't use extent and need to use min/max across the two variables
 	const yScale = scaleLinear()
-		.domain(extent(data, (d) => d.emissions))
+		.domain([d3min(data, (d) => d.ymin), d3max(data, (d) => d.ymax)])
 		.range([innerHeight, 0])
 		.nice();
-	// Use reactive variables to render line paths and areas
 
-	// *** line paths
-	$: lineActual = line()
+	// Build functions to generate d3 lines or areas
+	$: lineFn = line()
 		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(actual);
+		.x((d) => xScale(d.yeardate))
+		.y((d) => yScale(d.ymax));
 
-	$: lineAboveFourDegrees = line()
+	$: areaFn = area()
 		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.aboveFourDegrees);
+		.x((d) => xScale(d.yeardate))
+		.y0((d) => yScale(d.ymin))
+		.y1((d) => yScale(d.ymax));
 
-	$: lineFourDegrees = line()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.fourDegrees);
-
-	$: lineThreeDegrees = line()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.threeDegrees);
-
-	$: lineTwoDegrees = line()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.twoDegrees);
-
-	$: lineOnePointFiveDegrees = line()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.onePointFiveDegrees);
-
-	$: lineBottomRange = line()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y((d) => yScale(d.emissions))(arrays.bottomRange);
-
-	// *** areas
-	$: areaAboveFourDegrees = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.fourDegrees[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.aboveFourDegrees);
-
-	$: areaFourDegrees = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		// .y0(() => getY0Value())
-		//this was previously used to show "cumulative" emissions
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.threeDegrees[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.fourDegrees);
-
-	$: areaThreeDegrees = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		// .y0(() => getY0Value())
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.twoDegrees[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.threeDegrees);
-
-	$: areaTwoDegrees = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		// .y0(() => getY0Value())
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.onePointFiveDegrees[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.twoDegrees);
-
-	$: areaOnePointFiveDegrees = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		// .y0(() => getY0Value())
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.bottomRange[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.onePointFiveDegrees);
-
-	$: areaBottomRange = area()
-		.curve(curveNatural)
-		.x((d) => xScale(d.year))
-		// .y0(() => getY0Value())
-		.y0((d, i) => {
-			if (i === 0) {
-				return yScale(lastActualData.emissions);
-			} else {
-				const previousData = arrays.bottomRange[i];
-				return yScale(previousData.emissions);
-			}
-		})
-		.y1((d) => yScale(d.emissions))(arrays.bottomRange);
 </script>
 
 <div class="chart-container">
@@ -249,47 +110,18 @@
 			</text>
 
 			// Historical data graph
-			{#each actual as data, i}
-				<path d={lineActual} fill="none" stroke="#440FDB" stroke-width="2.5" />
-			{/each}
+			<path d={lineFn(actual)} fill="none" stroke="#440FDB" stroke-width="2.5" />
 
-			// Pathways graph
-			{#each Object.entries(arrays) as [key, dataArray], i}
-				{@const colorCodes = {
-					aboveFourDegrees: '#FFF',
-					fourDegrees: '#DF7153',
-					threeDegrees: '#E8AF5B',
-					twoDegrees: '#F0E478',
-					onePointFiveDegrees: '#B5CA74',
-					bottomRange: 'green'
-				}}
-				{@const lines = {
-					aboveFourDegrees: lineAboveFourDegrees,
-					fourDegrees: lineFourDegrees,
-					threeDegrees: lineThreeDegrees,
-					twoDegrees: lineTwoDegrees,
-					onePointFiveDegrees: lineOnePointFiveDegrees,
-					bottomRange: lineBottomRange
-				}}
-
-				{@const areas = {
-					aboveFourDegrees: areaAboveFourDegrees,
-					fourDegrees: areaFourDegrees,
-					threeDegrees: areaThreeDegrees,
-					twoDegrees: areaTwoDegrees,
-					onePointFiveDegrees: areaOnePointFiveDegrees,
-					bottomRange: areaBottomRange
-				}}
-
+			// Grouped data
+			// Looping over our grouped array gives us subset data for each temp category
+			{#each arrayFutureGrouped as [key, dataArray], i}
 				{#if step >= i + 1}
 					<g
 						out:fly={{ duration: 400, delay: i * 15 }}
 						in:fly={{ duration: 1000, y: 200, opacity: 0 }}
 					>
-						{#each dataArray as data}
-							<path d={lines[key]} fill="none" stroke={colorCodes[key]} stroke-width="4" />
-							<path d={areas[key]} fill={colorCodes[key]} opacity="1" />
-						{/each}
+						<path d={lineFn(dataArray)} fill="none" stroke={colourScaleLine(key)} stroke-width="4"></path>
+						<path d={areaFn(dataArray)} fill={colourScaleArea(key)} opacity=0.2></path>
 					</g>
 				{/if}
 			{/each}
