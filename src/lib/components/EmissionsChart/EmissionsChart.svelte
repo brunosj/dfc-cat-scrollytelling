@@ -1,7 +1,7 @@
 <script>
 	import Axis from '$components/EmissionsChart/Axis.svelte';
 	// *** Give min/max an alias so they don't clash with fn from Math library
-	import { extent, scaleLinear, scaleTime, scaleOrdinal, line, curveNatural, area, group, min as d3min, max as d3max, timeParse} from 'd3';
+	import { extent, scaleLinear, scaleTime, scaleOrdinal, line, curveNatural, area, group, min as d3min, max as d3max, timeParse, symbol, symbolCircle, select as d3select} from 'd3';
 	import { construct_svelte_component } from 'svelte/internal';
 	import { fly } from 'svelte/transition';
 
@@ -77,7 +77,7 @@
 	// Use D3 functions to define x and y scales
 	const xScale = scaleTime()
 		.domain(extent(data, (d) => d.yeardate))
-		.range([0, innerWidth])
+		.range([0, innerWidth*0.75]) // Reduce range of the axis so there is 25% of space not used
 		.nice();
 
 	// *** Because we now split our data between ymin/ymax we can't use extent and need to use min/max across the two variables
@@ -110,7 +110,18 @@
 			</text>
 
 			// Historical data graph
-			<path d={lineFn(actual)} fill="none" stroke="#440FDB" stroke-width="2.5" />
+			<path d={lineFn(actual)} fill="none" stroke="#440FDB" stroke-width="2.5"/>
+
+			// Example of policies and actions point and boxes
+			<circle cx={xScale(parseDate(2030))} cy={yScale(550)} r=7 fill="#508eb5"></circle>
+			<path d={lineFn([{yeardate: parseDate(2030), ymax: 550},
+							 {yeardate: parseDate(2040), ymax: 550}])} stroke="#508eb5" stroke-width="2"></path>
+			<path d={lineFn([{yeardate: parseDate(2040), ymax: 550},
+							 {yeardate: parseDate(2040), ymax: 900}])} stroke="#508eb5" stroke-width="2"></path>
+			<path d={areaFn([{yeardate: parseDate(2032), ymin: 900, ymax: 1100},
+							 {yeardate: parseDate(2047), ymin: 900, ymax: 1100}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
+			<path d={areaFn([{yeardate: parseDate(2032), ymin: 1100, ymax: 1300},
+							 {yeardate: parseDate(2047), ymin: 1100, ymax: 1300}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
 
 			// Grouped data
 			// Looping over our grouped array gives us subset data for each temp category
@@ -120,8 +131,10 @@
 						out:fly={{ duration: 400, delay: i * 15 }}
 						in:fly={{ duration: 1000, y: 200, opacity: 0 }}
 					>
+
 						<path d={lineFn(dataArray)} fill="none" stroke={colourScaleLine(key)} stroke-width="4"></path>
 						<path d={areaFn(dataArray)} fill={colourScaleArea(key)} opacity=0.2></path>
+
 					</g>
 				{/if}
 			{/each}
