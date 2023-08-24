@@ -8,13 +8,14 @@
 	// Export props
 
 	export let datapoints;
+	export let fairsharedata;
 	export let step;
 
 	// Define styling variables
 
 	const margin = { top: 100, bottom: 100, left: 70, right: 70 };
-	let width = 900;
-	let height = 700;
+	let width = 700;
+	let height = 600;
 
 	const innerHeight = height - margin.top - margin.bottom,
 		innerWidth = width - margin.left - margin.right;
@@ -32,6 +33,22 @@
 
 	// Declare variables used in the graph
 
+	//*** FAIRSHARE DATA FOR STACKED BARS ***//
+	// Read fairshare data into array
+	const {
+		fairshare: fairshare,
+	} = fairsharedata;
+
+	var fairshareArray = reformatYear(fairshare)
+
+	// *** Group data bytemperature category
+	var dataFairShareGrouped = group(fairshareArray, d => d.temp)
+	// *** Convert this d3 'group' object into an array (needed for us to use below)
+	var arrayFairShareGrouped = Array.from(dataFairShareGrouped)
+
+	console.log(arrayFairShareGrouped)
+
+	//*** DATA FOR EMISSIONS PATHWAYS ***//
 	// *** deconstruct datapoints object to extract individual arrays
 	const {
 		actual: actualUnformatted,
@@ -77,7 +94,7 @@
 	// Use D3 functions to define x and y scales
 	const xScale = scaleTime()
 		.domain(extent(data, (d) => d.yeardate))
-		.range([0, innerWidth*0.75]) // Reduce range of the axis so there is 25% of space not used
+		.range([0, innerWidth*0.65]) // Reduce range of the axis so there is 25% of space not used
 		.nice();
 
 	// *** Because we now split our data between ymin/ymax we can't use extent and need to use min/max across the two variables
@@ -117,11 +134,16 @@
 			<path d={lineFn([{yeardate: parseDate(2030), ymax: 550},
 							 {yeardate: parseDate(2040), ymax: 550}])} stroke="#508eb5" stroke-width="2"></path>
 			<path d={lineFn([{yeardate: parseDate(2040), ymax: 550},
-							 {yeardate: parseDate(2040), ymax: 900}])} stroke="#508eb5" stroke-width="2"></path>
-			<path d={areaFn([{yeardate: parseDate(2032), ymin: 900, ymax: 1100},
-							 {yeardate: parseDate(2047), ymin: 900, ymax: 1100}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
-			<path d={areaFn([{yeardate: parseDate(2032), ymin: 1100, ymax: 1300},
-							 {yeardate: parseDate(2047), ymin: 1100, ymax: 1300}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
+							 {yeardate: parseDate(2040), ymax: 1040}])} stroke="#508eb5" stroke-width="2"></path>
+			<path d={areaFn([{yeardate: parseDate(2032), ymin: 1050, ymax: 1200},
+							 {yeardate: parseDate(2047), ymin: 1050, ymax: 1200}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
+			<path d={areaFn([{yeardate: parseDate(2032), ymin: 1200, ymax: 1300},
+							 {yeardate: parseDate(2047), ymin: 1200, ymax: 1300}])} fill = "#508eb5" stroke="black" stroke-width="5"></path>
+
+			// Example of stacked bar plot
+			{#each arrayFairShareGrouped as [key, dataArray], i}
+				<path d={areaFn(dataArray)} fill={colourScaleArea(key)} opacity=0.4></path>
+			{/each}
 
 			// Grouped data
 			// Looping over our grouped array gives us subset data for each temp category

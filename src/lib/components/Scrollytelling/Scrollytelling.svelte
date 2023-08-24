@@ -2,6 +2,7 @@
 	import Scrolly from '$components/Scrollytelling/ScrollyComponent.svelte';
 	import EmissionsChart from '$components/EmissionsChart/EmissionsChart.svelte';
 	import GermanyData from '$data/GermanyEmissionsPathways.js';
+	import GermanyFairShare from '$data/GermanyFairShare.js';
 
 	let value;
 	const steps = [
@@ -30,7 +31,7 @@
 			</Scrolly>
 		</section>
 		<section class="sticky">
-			<EmissionsChart datapoints={GermanyData} step={value} />
+			<EmissionsChart datapoints={GermanyData} step={value} fairsharedata={GermanyFairShare}/>
 		</section>
 	</div>
 </article>
@@ -47,7 +48,7 @@
 	.sticky {
 		position: sticky;
 		top: 10%;
-		flex: 1 1 60%;
+		flex: 1 1 130%;
 		width: 60%;
 	}
 
